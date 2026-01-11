@@ -1,4 +1,9 @@
 {
-  "user_currencies": ["USD", "EUR"],
-  "user_stocks": ["AAPL", "AMZN", "GOOGL", "MSFT", "TSLA"]
+  "user_currencies": ["USD", "EUR", "GBP", "JPY", "CNY"],
+  "user_stocks": ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "META", "NVDA", "BRK.B"],
+  "settings": {
+    "language": "ru",
+    "currency": "RUB",
+    "timezone": "Europe/Moscow"
+  }
 }

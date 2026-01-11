@@ -14,6 +14,11 @@ lib/
 lib64/
 parts/
 sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
 # Virtual Environment
 .venv/
@@ -26,17 +31,30 @@ ENV/
 .idea/
 *.swp
 *.swo
-*~
+
+# Data
+*.db
+*.sqlite
+*.xlsx
+
+# Environment variables
+.env
 
 # OS
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
 Thumbs.db
-# Project specific
-data/operations.xlsx
-.env
+
+# Logs
 *.log
+logs/
+
+# Reports
+reports/
+report_*.json
+
+# Coverage
+.coverage
+htmlcov/
+
+# Poetry
+poetry.lock
