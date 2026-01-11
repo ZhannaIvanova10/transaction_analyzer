@@ -1,7 +1,8 @@
-# Python
+# Временные файлы
+*.pyc
+*.pyo
+*.pyd
 __pycache__/
-*.py[cod]
-*$py.class
 *.so
 .Python
 build/
@@ -20,41 +21,45 @@ wheels/
 .installed.cfg
 *.egg
 
-# Virtual Environment
-.venv/
+# Данные (если не нужно коммитить)
+data/
+*.db
+*.sqlite
+
+# Среды разработки
+.venv
 venv/
 env/
 ENV/
-
+env.bak/
+venv.bak/
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
+*~
+.project
+.pydevproject
+.settings/
 
-# Data
-*.db
-*.sqlite
-*.xlsx
-
-# Environment variables
-.env
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Logs
+# Логи
 *.log
 logs/
 
-# Reports
-reports/
-report_*.json
-
-# Coverage
+# Тестовые отчеты
 .coverage
 htmlcov/
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
 
-# Poetry
-poetry.lock
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
