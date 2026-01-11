@@ -34,19 +34,31 @@ def test_real_currency_rates():
     reason="Требуется API ключ для акций"
 )
 def test_real_stock_prices():
-    """Тест реального API цен акций."""
-    stocks = ["AAPL", "MSFT"]
-    result = get_stock_prices(stocks)
-    
-    assert isinstance(result, list)
-    assert len(result) > 0
-    
-    for item in result:
-        assert "stock" in item
-        assert "price" in item
-        assert isinstance(item["price"], (int, float))
-        assert item["price"] > 0
+    """Test getting real stock prices from API."""
+    symbols = ['AAPL', 'GOOGL', 'MSFT']
+    result = get_stock_prices(symbols)
 
+    # Функция возвращает список словарей
+    assert isinstance(result, list)
+    assert len(result) == len(symbols)
+
+    # Проверяем, что все символы присутствуют
+    result_symbols = [item['stock'] for item in result if 'stock' in item]
+    for symbol in symbols:
+        assert symbol in result_symbols
+
+    # Проверяем структуру
+    for item in result:
+        assert isinstance(item, dict)
+        assert 'stock' in item
+        assert 'price' in item
+        price = item['price']
+        assert isinstance(price, (int, float))
+        # Фиктивные цены > 0, реальные могут быть >= 0
+        if 'STOCK_API_KEY' in os.environ and os.environ['STOCK_API_KEY']:
+            assert price >= 0
+        else:
+            assert price > 0
 
 def test_currency_rates_fallback():
     """Тест fallback для курсов валют."""

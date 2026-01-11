@@ -2,10 +2,11 @@
 Финальные тесты для повышения покрытия до 80+%
 """
 
-import pytest
-import pandas as pd
 from datetime import datetime
-from unittest.mock import patch, mock_open, MagicMock
+from unittest.mock import MagicMock, mock_open, patch
+
+import pandas as pd
+import pytest
 
 
 def test_utils_fix():
@@ -28,10 +29,10 @@ def test_utils_fix():
 def test_simple_imports():
     """Проверка импорта модулей."""
     import src
+    import src.reports
+    import src.services
     import src.utils
     import src.views
-    import src.services
-    import src.reports
 
     assert True
 
@@ -179,47 +180,33 @@ def test_import_all_modules():
         pass
 
     try:
-        from src.utils import (
-            load_transactions_from_excel,
-            load_user_settings,
-            get_currency_rates,
-            get_stock_prices,
-            convert_to_dict_list,
-            filter_transactions_by_date_range,
-            save_to_json
-        )
+        from src.utils import (convert_to_dict_list,
+                               filter_transactions_by_date_range,
+                               get_currency_rates, get_stock_prices,
+                               load_transactions_from_excel,
+                               load_user_settings, save_to_json)
     except:
         pass
 
     try:
-        from src.views import (
-            get_home_page_data,
-            get_events_page_data,
-            calculate_total_spent_by_card,
-            calculate_cashback,
-            get_top_transactions
-        )
+        from src.views import (calculate_cashback,
+                               calculate_total_spent_by_card,
+                               get_events_page_data, get_home_page_data,
+                               get_top_transactions)
     except:
         pass
 
     try:
-        from src.services import (
-            profitable_cashback_categories,
-            investment_bank,
-            simple_search,
-            search_by_phone_numbers,
-            search_by_person_transfers
-        )
+        from src.services import (investment_bank,
+                                  profitable_cashback_categories,
+                                  search_by_person_transfers,
+                                  search_by_phone_numbers, simple_search)
     except:
         pass
 
     try:
-        from src.reports import (
-            spending_by_category,
-            spending_by_weekday,
-            spending_by_workday,
-            report_decorator
-        )
+        from src.reports import (report_decorator, spending_by_category,
+                                 spending_by_weekday, spending_by_workday)
     except:
         pass
 

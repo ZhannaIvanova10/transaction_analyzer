@@ -1,0 +1,76 @@
+[
+  {
+    "id": 1,
+    "date": "2023-12-01T10:30:00",
+    "description": "Перевод организации",
+    "from": "Счет 1234567890123456",
+    "to": "Счет 9876543210987654",
+    "operationAmount": {
+      "amount": 15000.50,
+      "currency": {
+        "code": "RUB",
+        "name": "Российский рубль"
+      }
+    },
+    "state": "EXECUTED"
+  },
+  {
+    "id": 2,
+    "date": "2023-11-15T14:20:00",
+    "description": "Открытие вклада",
+    "to": "Счет 5555666677778888",
+    "operationAmount": {
+      "amount": 50000,
+      "currency": {
+        "code": "RUB",
+        "name": "Российский рубль"
+      }
+    },
+    "state": "EXECUTED"
+  },
+  {
+    "id": 3,
+    "date": "2023-11-10T09:15:00",
+    "description": "Международный перевод",
+    "from": "Visa Platinum 1234567890123456",
+    "to": "MasterCard 9876543210987654",
+    "operationAmount": {
+      "amount": 1000,
+      "currency": {
+        "code": "USD",
+        "name": "Доллар США"
+      }
+    },
+    "state": "CANCELED"
+  },
+  {
+    "id": 4,
+    "date": "2023-10-25T16:45:00",
+    "description": "Оплата услуг",
+    "from": "Счет 1111222233334444",
+    "to": "Счет 4444333322221111",
+    "operationAmount": {
+      "amount": 2500.75,
+      "currency": {
+        "code": "RUB",
+        "name": "Российский рубль"
+      }
+    },
+    "state": "EXECUTED"
+  },
+  {
+    "id": 5,
+    "date": "2023-10-10T11:00:00",
+    "description": "Перевод с карты на карту",
+    "from": "МИР 1234567890123456",
+    "to": "Visa Classic 9876543210987654",
+    "operationAmount": {
+      "amount": 7500,
+      "currency": {
+        "code": "RUB",
+        "name": "Российский рубль"
+      }
+    },
+    "state": "PENDING"
+  }
+]
