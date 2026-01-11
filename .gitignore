@@ -63,3 +63,5 @@ coverage.xml
 
 # Windows
 Thumbs.db
+.env
+reports/
