@@ -6,14 +6,11 @@ import json
 import logging
 from typing import Any, Dict
 
-from src.reports import spending_by_category, spending_by_weekday, spending_by_workday
-from src.services import (
-    investment_bank,
-    profitable_cashback_categories,
-    search_by_person_transfers,
-    search_by_phone_numbers,
-    simple_search,
-)
+from src.reports import (spending_by_category, spending_by_weekday,
+                         spending_by_workday)
+from src.services import (investment_bank, profitable_cashback_categories,
+                          search_by_person_transfers, search_by_phone_numbers,
+                          simple_search)
 from src.utils import convert_to_dict_list, load_transactions_from_excel
 from src.views import get_events_page_data, get_home_page_data
 

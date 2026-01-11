@@ -2,11 +2,13 @@
 Модуль с функциями для веб-страниц.
 """
 
+import json
 import logging
 from datetime import datetime, timedelta
 from typing import Any, Dict
 
 import pandas as pd
+import requests
 
 from src.utils import (
     convert_to_dict_list,
@@ -16,6 +18,7 @@ from src.utils import (
     get_stock_prices,
     get_top_transactions,
     load_user_settings,
+    load_transactions_from_excel,  # Добавляем импорт здесь
 )
 
 logger = logging.getLogger(__name__)
@@ -43,13 +46,10 @@ def get_home_page_data(date_str: str) -> Dict[str, Any]:
         currency_rates = get_currency_rates(
             settings.get("user_currencies", ["USD", "EUR"])
         )
-
         # Получаем цены акций
         stock_prices = get_stock_prices(settings.get("user_stocks", ["AAPL", "MSFT"]))
 
         # Загружаем транзакции
-        from src.utils import load_transactions_from_excel
-
         df = load_transactions_from_excel()
 
         # Фильтруем транзакции за месяц
@@ -74,7 +74,6 @@ def get_home_page_data(date_str: str) -> Dict[str, Any]:
                 )
                 .reset_index()
             )
-
             for _, row in card_stats.iterrows():
                 card_number = str(row["Номер карты"])
                 last_digits = card_number[-4:] if len(card_number) >= 4 else "0000"
@@ -99,7 +98,6 @@ def get_home_page_data(date_str: str) -> Dict[str, Any]:
             "stock_prices": stock_prices,
             "current_date": date_str,
         }
-
         return result
     except Exception as e:
         logger.error("Ошибка генерации данных главной страницы: %s", e)
@@ -119,7 +117,6 @@ def get_events_page_data(
 ) -> Dict[str, Any]:
     """
     Генерирует данные для страницы событий.
-
     Args:
         df: DataFrame с транзакциями
         date_str: Дата в формате 'YYYY-MM-DD'
@@ -160,7 +157,6 @@ def get_events_page_data(
         # Разделяем на расходы и доходы
         expenses_df = filtered_df[filtered_df["Сумма платежа"] < 0].copy()
         income_df = filtered_df[filtered_df["Сумма платежа"] > 0].copy()
-
         # Рассчитываем расходы
         expenses_total = (
             int(expenses_df["Сумма платежа"].abs().sum())
@@ -205,7 +201,6 @@ def get_events_page_data(
         income_total = (
             int(income_df["Сумма платежа"].sum()) if not income_df.empty else 0
         )
-
         # Группируем доходы по категориям
         income_by_category = {}
         if not income_df.empty and "Категория" in income_df.columns:

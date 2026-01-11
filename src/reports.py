@@ -26,8 +26,28 @@ def report_decorator(filename: Optional[str] = None) -> Callable[[Any], Any]:
     """
 
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+        """
+        Внутренний декоратор для обертывания функции.
+
+        Args:
+            func: Функция для обертывания
+
+        Returns:
+            Обернутую функцию
+        """
+
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Union[Dict[str, Any], pd.DataFrame]:
+            """
+            Обертка функции, которая выполняет запись результата в файл.
+
+            Args:
+                *args: Позиционные аргументы
+                **kwargs: Именованные аргументы
+
+            Returns:
+                Результат выполнения оригинальной функции
+            """
             try:
                 result = func(*args, **kwargs)
 
@@ -49,13 +69,16 @@ def report_decorator(filename: Optional[str] = None) -> Callable[[Any], Any]:
 
                     with open(file_to_save, "w", encoding="utf-8") as f:
                         json.dump(save_data, f, ensure_ascii=False, indent=2)
-                    logger.info("Отчет сохранен в %s", file_to_save)
-                except Exception as e:
-                    logger.error("Ошибка сохранения отчета: %s", e)
+
+                    logger.info("Отчет сохранен в файл: %s", file_to_save)
+
+                except Exception as save_error:
+                    logger.error("Ошибка при сохранении отчета: %s", save_error)
 
                 return result
+
             except Exception as e:
-                logger.error("Ошибка в функции %s: %s", func.__name__, e)
+                logger.error("Ошибка при выполнении функции %s: %s", func.__name__, e)
                 raise
 
         return wrapper
@@ -66,387 +89,262 @@ def report_decorator(filename: Optional[str] = None) -> Callable[[Any], Any]:
 @report_decorator()
 def spending_by_category(
     transactions: pd.DataFrame, category: str, date: Optional[str] = None
-) -> Dict[str, Any]:
+) -> pd.DataFrame:
     """
-    Анализирует траты по категории за последние 3 месяца.
+    Анализирует траты по указанной категории за последние три месяца.
+
     Args:
         transactions: DataFrame с транзакциями
         category: Категория для анализа
-        date: Дата отсчет (если None, используется текущая дата)
+        date: Дата отсчета в формате 'YYYY-MM-DD' (если None, используется текущая дата)
 
     Returns:
-        Словарь с анализом трат
+        DataFrame с тратами по категории
     """
     try:
-        if transactions.empty:
-            logger.warning("Нет данных для анализа")
-            return {
-                "category": category,
-                "period": "",
-                "total_spent": 0.0,
-                "transaction_count": 0,
-                "spending": [],
-            }
+        logger.info("Анализ трат по категории '%s'", category)
 
         # Определяем дату отсчета
-        if date:
-            try:
-                end_date = datetime.strptime(date, "%Y-%m-%d")
-            except ValueError:
-                logger.warning(
-                    "Неверный формат даты: %s, используется текущая дата", date
-                )
-                end_date = datetime.now()
-        else:
+        if date is None:
             end_date = datetime.now()
+        else:
+            end_date = datetime.strptime(date, "%Y-%m-%d")
+
+        # Вычисляем дату начала (три месяца назад)
         start_date = end_date - timedelta(days=90)
 
-        # Проверяем наличие необходимых колонок
-        required_columns = ["Дата операции", "Сумма платежа", "Категория"]
-        for col in required_columns:
-            if col not in transactions.columns:
-                logger.error("Отсутствует колонка: %s", col)
-                return {
-                    "category": category,
-                    "period": "",
-                    "total_spent": 0.0,
-                    "transaction_count": 0,
-                    "spending": [],
-                }
+        # Преобразуем дату операции в datetime, если нужно
+        if "Дата операции" in transactions.columns:
+            if not pd.api.types.is_datetime64_any_dtype(transactions["Дата операции"]):
+                transactions["Дата операции"] = pd.to_datetime(
+                    transactions["Дата операции"], errors="coerce"
+                )
 
-        # Конвертируем дату
-        transactions["Дата операции"] = pd.to_datetime(
-            transactions["Дата операции"], errors="coerce"
+        # Фильтруем по дате
+        date_mask = (transactions["Дата операции"] >= start_date) & (
+            transactions["Дата операции"] <= end_date
         )
+        period_transactions = transactions[date_mask].copy()
 
-        # Фильтруем по дате и категории, только отрицательные суммы (траты)
-        mask = (
-            (transactions["Дата операции"] >= start_date)
-            & (transactions["Дата операции"] <= end_date)
-            & (transactions["Категория"] == category)
-            & (transactions["Сумма платежа"] < 0)  # Только траты
-        )
-        filtered_df = transactions[mask].copy()
-
-        if filtered_df.empty:
-            logger.warning(
-                "Нет транзакций по категории '%s' за последние 3 месяца", category
+        # Фильтруем по категории
+        if "Категория" in period_transactions.columns:
+            category_mask = period_transactions["Категория"].str.contains(
+                category, case=False, na=False
             )
-            return {
-                "category": category,
-                "period": f"{start_date.strftime('%Y-%m-%d')} - {end_date.strftime('%Y-%m-%d')}",
-                "total_spent": 0.0,
-                "transaction_count": 0,
-                "spending": [],
-            }
+            category_transactions = period_transactions[category_mask].copy()
+        else:
+            category_transactions = pd.DataFrame()
 
-        # Агрегируем по месяцам
-        filtered_df["month"] = filtered_df["Дата операции"].dt.strftime("%Y-%m")
+        if category_transactions.empty:
+            logger.warning(
+                "Не найдено транзакций по категории '%s' за указанный период", category
+            )
+            return pd.DataFrame(columns=["Дата", "Сумма", "Описание"])
 
-        # Используем абсолютные значения для трат
-        filtered_df["abs_amount"] = filtered_df["Сумма платежа"].abs()
+        # Группируем по месяцам
+        category_transactions["Месяц"] = category_transactions[
+            "Дата операции"
+        ].dt.to_period("M")
 
-        monthly_stats = (
-            filtered_df.groupby("month")
+        result = (
+            category_transactions.groupby("Месяц")
             .agg(
-                total_spent=("abs_amount", "sum"),
-                transaction_count=("abs_amount", "count"),
+                total_amount=("Сумма операции", "sum"),
+                transaction_count=("Сумма операции", "count"),
+                avg_amount=("Сумма операции", "mean"),
             )
             .reset_index()
         )
-        # Сортируем по месяцам
-        monthly_stats = monthly_stats.sort_values("month")
 
-        # Подготавливаем результат
-        spending_list = []
-        for _, row in monthly_stats.iterrows():
-            spending_list.append(
-                {
-                    "month": row["month"],
-                    "total_spent": float(row["total_spent"]),
-                    "transaction_count": int(row["transaction_count"]),
-                }
-            )
+        result["Месяц"] = result["Месяц"].astype(str)
 
-        total_spent = float(filtered_df["abs_amount"].sum())
-        transaction_count = len(filtered_df)
-
-        result = {
-            "category": category,
-            "period": f"{start_date.strftime('%Y-%m-%d')} - {end_date.strftime('%Y-%m-%d')}",
-            "total_spent": total_spent,
-            "transaction_count": transaction_count,
-            "spending": spending_list,
-        }
         logger.info(
-            "Проанализированы траты по категории '%s': %s транзакций, %.2f руб.",
+            "Найдено %d транзакций по категории '%s'",
+            len(category_transactions),
             category,
-            transaction_count,
-            total_spent,
         )
+
         return result
 
     except Exception as e:
-        logger.error("Ошибка анализа трат по категории: %s", e)
-        return {
-            "category": category,
-            "period": "",
-            "total_spent": 0.0,
-            "transaction_count": 0,
-            "spending": [],
-        }
+        logger.error("Ошибка при анализе трат по категории: %s", e)
+        return pd.DataFrame(
+            columns=["Месяц", "total_amount", "transaction_count", "avg_amount"]
+        )
 
 
-@report_decorator()
+@report_decorator(filename="reports/weekly_spending.json")
 def spending_by_weekday(
     transactions: pd.DataFrame, date: Optional[str] = None
-) -> Dict[str, Any]:
+) -> pd.DataFrame:
     """
-    Анализирует средние траты по дням недели за последние 3 месяца.
+    Анализирует средние траты по дням недели за последние три месяца.
+
     Args:
-        transactions: DataFrame с транзакции
-        date: Дата отсчета (если None, используется текущая дата)
+        transactions: DataFrame с транзакциями
+        date: Дата отсчета в формате 'YYYY-MM-DD' (если None, используется текущая дата)
 
     Returns:
-        Словарь с анализом трат по дням недели
+        DataFrame со средними тратами по дням недели
     """
     try:
-        if transactions.empty:
-            logger.warning("Нет данных для анализа")
-            return {"period": "", "spending_by_weekday": {}}
+        logger.info("Анализ трат по дням недели")
 
         # Определяем дату отсчета
-        if date:
-            try:
-                end_date = datetime.strptime(date, "%Y-%m-%d")
-            except ValueError:
-                logger.warning(
-                    "Неверный формат даты: %s, используется текущая дата", date
-                )
-                end_date = datetime.now()
-        else:
+        if date is None:
             end_date = datetime.now()
+        else:
+            end_date = datetime.strptime(date, "%Y-%m-%d")
 
+        # Вычисляем дату начала (три месяца назад)
         start_date = end_date - timedelta(days=90)
-        # Проверяем наличие необходимых колонок
-        required_columns = ["Дата операции", "Сумма платежа"]
-        for col in required_columns:
-            if col not in transactions.columns:
-                logger.error("Отсутствует колонка: %s", col)
-                return {
-                    "period": f"{start_date.strftime('%Y-%m-%d')} - {end_date.strftime('%Y-%m-%d')}",
-                    "spending_by_weekday": {},
-                }
 
-        # Конвертируем дату
-        transactions["Дата операции"] = pd.to_datetime(
-            transactions["Дата операции"], errors="coerce"
+        # Преобразуем дату операции в datetime, если нужно
+        if "Дата операции" in transactions.columns:
+            if not pd.api.types.is_datetime64_any_dtype(transactions["Дата операции"]):
+                transactions["Дата операции"] = pd.to_datetime(
+                    transactions["Дата операции"], errors="coerce"
+                )
+
+        # Фильтруем по дате
+        date_mask = (transactions["Дата операции"] >= start_date) & (
+            transactions["Дата операции"] <= end_date
         )
+        period_transactions = transactions[date_mask].copy()
 
-        # Фильтруем по дате и только отрицательные суммы (траты)
-        mask = (
-            (transactions["Дата операции"] >= start_date)
-            & (transactions["Дата операции"] <= end_date)
-            & (transactions["Сумма платежа"] < 0)  # Только траты
-        )
-        filtered_df = transactions[mask].copy()
-
-        if filtered_df.empty:
-            logger.warning("Нет транзакций за последние 3 месяца")
-            return {
-                "period": f"{start_date.strftime('%Y-%m-%d')} - {end_date.strftime('%Y-%m-%d')}",
-                "spending_by_weekday": {},
-            }
+        if period_transactions.empty:
+            logger.warning("Не найдено транзакций за указанный период")
+            return pd.DataFrame(
+                columns=[
+                    "День недели",
+                    "avg_spending",
+                    "total_spending",
+                    "transaction_count",
+                ]
+            )
 
         # Добавляем день недели
-        filtered_df["weekday"] = filtered_df["Дата операции"].dt.day_name()
+        period_transactions["День недели"] = period_transactions[
+            "Дата операции"
+        ].dt.day_name()
 
-        # Русские названия дней недели
-        weekday_translation = {
-            "Monday": "Понедельник",
-            "Tuesday": "Вторник",
-            "Wednesday": "Среда",
-            "Thursday": "Четверг",
-            "Friday": "Пятница",
-            "Saturday": "Суббота",
-            "Sunday": "Воскресенье",
-        }
-        filtered_df["weekday_ru"] = filtered_df["weekday"].map(weekday_translation)
-
-        # Используем абсолютные значения для трат
-        filtered_df["abs_amount"] = filtered_df["Сумма платежа"].abs()
-
-        # Агрегируем по дням недели
-        weekday_stats = (
-            filtered_df.groupby("weekday_ru")
+        # Группируем по дням недели
+        result = (
+            period_transactions.groupby("День недели")
             .agg(
-                average_spent=("abs_amount", "mean"),
-                total_spent=("abs_amount", "sum"),
-                transaction_count=("abs_amount", "count"),
+                avg_spending=("Сумма операции", "mean"),
+                total_spending=("Сумма операции", "sum"),
+                transaction_count=("Сумма операции", "count"),
             )
             .reset_index()
         )
 
-        # Сортируем по порядку дней недели
-        weekday_order = [
-            "Понедельник",
-            "Вторник",
-            "Среда",
-            "Четверг",
-            "Пятница",
-            "Суббота",
-            "Воскресенье",
+        # Упорядочиваем дни недели
+        day_order = [
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday",
+            "Saturday",
+            "Sunday",
         ]
-        weekday_stats["weekday_order"] = weekday_stats["weekday_ru"].apply(
-            lambda x: (
-                weekday_order.index(x) if x in weekday_order else len(weekday_order)
-            )
+        result["День недели"] = pd.Categorical(
+            result["День недели"], categories=day_order, ordered=True
         )
-        weekday_stats = weekday_stats.sort_values("weekday_order")
+        result = result.sort_values("День недели").reset_index(drop=True)
 
-        # Подготавливаем результат
-        spending_by_weekday_dict = {}
-        for _, row in weekday_stats.iterrows():
-            spending_by_weekday_dict[row["weekday_ru"]] = {
-                "average_spent": float(row["average_spent"]),
-                "total_spent": float(row["total_spent"]),
-                "transaction_count": int(row["transaction_count"]),
-            }
-        result = {
-            "period": f"{start_date.strftime('%Y-%m-%d')} - {end_date.strftime('%Y-%m-%d')}",
-            "spending_by_weekday": spending_by_weekday_dict,
-        }
+        logger.info("Проанализировано трат по дням недели: %d строк", len(result))
 
-        logger.info(
-            "Проанализированы траты по дням недели: %s транзакций", len(filtered_df)
-        )
         return result
 
     except Exception as e:
-        logger.error("Ошибка анализа трат по дням недели: %s", e)
-        return {"period": "", "spending_by_weekday": {}}
+        logger.error("Ошибка при анализе трат по дням недели: %s", e)
+        return pd.DataFrame(
+            columns=[
+                "День недели",
+                "avg_spending",
+                "total_spending",
+                "transaction_count",
+            ]
+        )
 
 
 @report_decorator()
 def spending_by_workday(
     transactions: pd.DataFrame, date: Optional[str] = None
-) -> Dict[str, Any]:
+) -> pd.DataFrame:
     """
-    Анализирует средние траты в рабочие и выходные дни за последние 3 месяца.
+    Анализирует траты в рабочие и выходные дни за последние три месяца.
 
     Args:
         transactions: DataFrame с транзакциями
-        date: Дата отсчета (если None, используется текущая дата)
+        date: Дата отсчета в формате 'YYYY-MM-DD' (если None, используется текущая дата)
 
     Returns:
-        Словарь с анализом трат по типам дней
+        DataFrame с тратами по типам дней
     """
     try:
-        if transactions.empty:
-            logger.warning("Нет данных для анализа")
-            return {"period": "", "workday_spending": {}, "total_statistics": {}}
+        logger.info("Анализ трат в рабочие/выходные дни")
 
         # Определяем дату отсчета
-        if date:
-            try:
-                end_date = datetime.strptime(date, "%Y-%m-%d")
-            except ValueError:
-                logger.warning(
-                    "Неверный формат даты: %s, используется текущая дата", date
-                )
-                end_date = datetime.now()
-        else:
+        if date is None:
             end_date = datetime.now()
+        else:
+            end_date = datetime.strptime(date, "%Y-%m-%d")
 
+        # Вычисляем дату начала (три месяца назад)
         start_date = end_date - timedelta(days=90)
-        # Проверяем наличие необходимых колонок
-        required_columns = ["Дата операции", "Сумма платежа"]
-        for col in required_columns:
-            if col not in transactions.columns:
-                logger.error("Отсутствует колонка: %s", col)
-                return {
-                    "period": f"{start_date.strftime('%Y-%m-%d')} - {end_date.strftime('%Y-%m-%d')}",
-                    "workday_spending": {},
-                    "total_statistics": {},
-                }
 
-        # Конвертируем дату
-        transactions["Дата операции"] = pd.to_datetime(
-            transactions["Дата операции"], errors="coerce"
+        # Преобразуем дату операции в datetime, если нужно
+        if "Дата операции" in transactions.columns:
+            if not pd.api.types.is_datetime64_any_dtype(transactions["Дата операции"]):
+                transactions["Дата операции"] = pd.to_datetime(
+                    transactions["Дата операции"], errors="coerce"
+                )
+
+        # Фильтруем по дате
+        date_mask = (transactions["Дата операции"] >= start_date) & (
+            transactions["Дата операции"] <= end_date
+        )
+        period_transactions = transactions[date_mask].copy()
+
+        if period_transactions.empty:
+            logger.warning("Не найдено транзакций за указанный период")
+            return pd.DataFrame(
+                columns=[
+                    "Тип дня",
+                    "avg_spending",
+                    "total_spending",
+                    "transaction_count",
+                ]
+            )
+
+        # Определяем тип дня (рабочий/выходной)
+        period_transactions["День недели"] = period_transactions[
+            "Дата операции"
+        ].dt.weekday
+        period_transactions["Тип дня"] = period_transactions["День недели"].apply(
+            lambda x: "Выходной" if x >= 5 else "Рабочий"
         )
 
-        # Фильтруем по дате и только отрицательные суммы (траты)
-        mask = (
-            (transactions["Дата операции"] >= start_date)
-            & (transactions["Дата операции"] <= end_date)
-            & (transactions["Сумма платежа"] < 0)  # Только траты
-        )
-
-        filtered_df = transactions[mask].copy()
-
-        if filtered_df.empty:
-            logger.warning("Нет транзакций за последние 3 месяца")
-            return {
-                "period": f"{start_date.strftime('%Y-%m-%d')} - {end_date.strftime('%Y-%m-%d')}",
-                "workday_spending": {},
-                "total_statistics": {},
-            }
-
-        # Добавляем тип дня (рабочий/выходной)
-        # Понедельник-пятница = рабочие дни, суббота-воскресенье = выходные
-        filtered_df["is_weekend"] = filtered_df["Дата операции"].dt.weekday >= 5
-        filtered_df["day_type"] = filtered_df["is_weekend"].apply(
-            lambda x: "Выходные дни" if x else "Рабочие дни"
-        )
-
-        # Используем абсолютные значения для трат
-        filtered_df["abs_amount"] = filtered_df["Сумма платежа"].abs()
-
-        # Агрегируем по типам дней
-        day_type_stats = (
-            filtered_df.groupby("day_type")
+        # Группируем по типу дня
+        result = (
+            period_transactions.groupby("Тип дня")
             .agg(
-                average_spent=("abs_amount", "mean"),
-                total_spent=("abs_amount", "sum"),
-                transaction_count=("abs_amount", "count"),
-                average_daily_transactions=(
-                    "abs_amount",
-                    lambda x: len(x) / 90 * (7 / 5 if "Рабочие" in x.name else 7 / 2),
-                ),
+                avg_spending=("Сумма операции", "mean"),
+                total_spending=("Сумма операции", "sum"),
+                transaction_count=("Сумма операции", "count"),
             )
             .reset_index()
         )
-        # Общая статистика
-        total_spent = float(filtered_df["abs_amount"].sum())
-        total_transactions = len(filtered_df)
-        average_daily_spent = total_spent / 90
 
-        # Подготавливаем результат
-        workday_spending = {}
-        for _, row in day_type_stats.iterrows():
-            workday_spending[row["day_type"]] = {
-                "average_spent": float(row["average_spent"]),
-                "total_spent": float(row["total_spent"]),
-                "transaction_count": int(row["transaction_count"]),
-                "average_daily_transactions": float(row["average_daily_transactions"]),
-            }
+        logger.info("Проанализировано трат по типам дней: %d строк", len(result))
 
-        result = {
-            "period": f"{start_date.strftime('%Y-%m-%d')} - {end_date.strftime('%Y-%m-%d')}",
-            "workday_spending": workday_spending,
-            "total_statistics": {
-                "total_spent": total_spent,
-                "total_transactions": total_transactions,
-                "average_daily_spent": average_daily_spent,
-            },
-        }
-        logger.info(
-            "Проанализированы траты по типам дней: %s транзакций, %.2f руб.",
-            total_transactions,
-            total_spent,
-        )
         return result
 
     except Exception as e:
-        logger.error("Ошибка анализа трат по типам дней: %s", e)
-        return {"period": "", "workday_spending": {}, "total_statistics": {}}
+        logger.error("Ошибка при анализе трат по типам дней: %s", e)
+        return pd.DataFrame(
+            columns=["Тип дня", "avg_spending", "total_spending", "transaction_count"]
+        )
