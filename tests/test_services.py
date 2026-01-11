@@ -2,17 +2,15 @@
 Тесты для модуля services.py.
 """
 
-import pytest
 import re
 from datetime import datetime
 
-from src.services import (
-    profitable_cashback_categories,
-    investment_bank,
-    simple_search,
-    search_by_phone_numbers,
-    search_by_person_transfers,
-)
+import pytest
+
+from src.services import (investment_bank, profitable_cashback_categories,
+                          search_by_person_transfers, search_by_phone_numbers,
+                          simple_search)
+
 
 class TestServices:
     """Тесты для services.py."""

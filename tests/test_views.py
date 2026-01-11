@@ -2,12 +2,13 @@
 Тесты для модуля views.py.
 """
 
-import pytest
-import pandas as pd
-from unittest.mock import patch, MagicMock
 from datetime import datetime
+from unittest.mock import MagicMock, patch
 
-from src.views import get_home_page_data, get_events_page_data
+import pandas as pd
+import pytest
+
+from src.views import get_events_page_data, get_home_page_data
 
 
 class TestViews:

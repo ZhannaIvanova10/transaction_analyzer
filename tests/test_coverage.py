@@ -2,31 +2,21 @@
 Тесты для проверки покрытия кода.
 """
 
-import pytest
-from unittest.mock import patch, MagicMock
-import pandas as pd
 from datetime import datetime
+from unittest.mock import MagicMock, patch
 
-from src.views import get_home_page_data, get_events_page_data
-from src.services import (
-    profitable_cashback_categories,
-    investment_bank,
-    simple_search,
-    search_by_phone_numbers,
-    search_by_person_transfers,
-)
-from src.reports import (
-    spending_by_category,
-    spending_by_weekday,
-    spending_by_workday,
-)
-from src.utils import (
-    load_transactions_from_excel,
-    filter_transactions_by_date,
-    get_greeting_by_time,
-    get_currency_rates,
-    get_stock_prices,
-)
+import pandas as pd
+import pytest
+
+from src.reports import (spending_by_category, spending_by_weekday,
+                         spending_by_workday)
+from src.services import (investment_bank, profitable_cashback_categories,
+                          search_by_person_transfers, search_by_phone_numbers,
+                          simple_search)
+from src.utils import (filter_transactions_by_date, get_currency_rates,
+                       get_greeting_by_time, get_stock_prices,
+                       load_transactions_from_excel)
+from src.views import get_events_page_data, get_home_page_data
 
 
 class TestCoverage:

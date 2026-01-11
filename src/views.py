@@ -10,16 +10,11 @@ from typing import Any, Dict
 import pandas as pd
 import requests
 
-from src.utils import (
-    convert_to_dict_list,
-    filter_transactions_by_date,
-    get_currency_rates,
-    get_greeting_by_time,
-    get_stock_prices,
-    get_top_transactions,
-    load_user_settings,
-    load_transactions_from_excel,  # Добавляем импорт здесь
-)
+from src.utils import load_transactions_from_excel  # Добавляем импорт здесь
+from src.utils import (convert_to_dict_list, filter_transactions_by_date,
+                       get_currency_rates, get_greeting_by_time,
+                       get_stock_prices, get_top_transactions,
+                       load_user_settings)
 
 logger = logging.getLogger(__name__)
 
